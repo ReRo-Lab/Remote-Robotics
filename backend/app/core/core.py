@@ -28,6 +28,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+ROLE_DEVELOPER = "developer"
+ROLE_ROOT = "root"
+ROLE_ADMIN = "admin"
+
+# Role levels
+su_roles = (ROLE_ROOT, ROLE_DEVELOPER)
+admin_roles = su_roles + (ROLE_ADMIN,)
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -72,9 +79,19 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        # Check username registered
         if username is None:
             raise credentials_exception
+
+        # Allow only one user, check jwt against stored jwt
+        elif (username not in admin_roles) and (ds.get_jwt(username) != token):
+            # On multiple users using same account, remove the older login
+            ds.set_jwt(username, None)
+            raise credentials_exception
+        
         token_data = TokenData(username=username)
+
+
     except InvalidTokenError:
         raise credentials_exception
     user = get_user(username=token_data.username)
@@ -89,7 +106,7 @@ async def get_current_active_user(
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     
-    elif (current_user.username != "root") and (
+    elif (current_user.username not in admin_roles) and (
         (
             int(current_user.start_time) > int(datetime.now().strftime("%y%m%d%H%M%S"))
             or int(current_user.end_time) < int(datetime.now().strftime("%y%m%d%H%M%S"))
@@ -112,7 +129,7 @@ async def only_root_user(
         current_user: Annotated[User, Depends(get_current_user)]
 ):
     """Allow only root user to access functionality"""
-    if current_user.username != "root":
+    if current_user.username not in su_roles:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not Authorized",
@@ -120,13 +137,34 @@ async def only_root_user(
         )
     return current_user
 
+async def only_developer(
+        current_user: Annotated[User, Depends(get_current_user)]
+):
+    "Allow only developer access functionality"
+    if current_user.username != ROLE_DEVELOPER:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            details="Developer only endpoint",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+async def admin_plus(
+        current_user: Annotated[User, Depends(get_current_user)]
+):
+    "Allow admin, root & developer to access endpoint"
+    if current_user.username not in admin_roles:
+        raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            details="Developer, root & admin endpoint only",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 async def iot_bot_access(
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """Allow only root user and user with timeslot alloted to iot_bot to access"""
     
-    if current_user.bot == "iot" or current_user.username == "root":
+    if current_user.bot == "iot" or current_user.username in su_roles:
         return current_user
     
     elif current_user.bot == "ros":
@@ -146,7 +184,7 @@ async def ros_bot_access(
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """Allow only root user and user with timeslot alloted to ros_bot to access"""
-    if current_user.bot == "ros" or current_user.username =="root":
+    if current_user.bot == "ros" or current_user.username in su_roles:
         return current_user
     
     elif current_user.bot == "iot":
@@ -182,7 +220,7 @@ async def login_for_access_token(
             detail="User Disabled",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    elif (user.username != "root") and (
+    elif (user.username not in admin_roles) and (
         (
             int(user.start_time) > int(datetime.now().strftime("%y%m%d%H%M%S"))
             or int(user.end_time) < int(datetime.now().strftime("%y%m%d%H%M%S"))
@@ -216,7 +254,7 @@ async def login_for_access_token(
 
 async def add_user(
     user: UserInDB,
-    current_user: Annotated[User, Depends(only_root_user)], 
+    current_user: Annotated[User, Depends(admin_plus)], 
 ) -> User:
     
     """
@@ -277,7 +315,7 @@ async def set_password(
         - failure: HTTPException
     """
 
-    if username == "root":
+    if username in su_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not Allowed to change the root password",
@@ -285,7 +323,7 @@ async def set_password(
         )
 
     # Root user with the date of birth
-    if (current_user == "root") and (
+    if (current_user in admin_plus) and (
         ds.get_user(username).date_of_birth == date_of_birth
     ):
         user: User = ds.get_user(username)
@@ -303,7 +341,7 @@ async def set_password(
 
     # Non-root user with the same username and date of birth
     elif (
-        (current_user != "root")
+        (current_user not in admin_plus)
         and (current_user.username == user.username)
         and (user.date_of_birth == date_of_birth)
     ):

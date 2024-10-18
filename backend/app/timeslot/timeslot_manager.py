@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from ..database import operations as ds
 from ..core.schema import Token, TokenData, User, UserInDB
 
-from ..core.core import get_current_active_user, only_root_user
+from ..core.core import get_current_active_user, only_root_user, admin_plus
 
 router = APIRouter()
 
@@ -19,7 +19,7 @@ router = APIRouter()
     },
 )
 async def get_timeslots(
-    current_user: Annotated[User, Depends(only_root_user)]
+    current_user: Annotated[User, Depends(admin_plus)]
 ) -> list[User] | None:
 
     users: list[User] = ds.get_users()
@@ -43,7 +43,7 @@ async def set_timeslot(
     start_time: str,
     end_time: str,
     bot: str,
-    current_user: Annotated[User, Depends(only_root_user)],
+    current_user: Annotated[User, Depends(admin_plus)],
 ) -> User:
     """Allot a timeslot to the user
     Only root user is authorized to allot timeslots

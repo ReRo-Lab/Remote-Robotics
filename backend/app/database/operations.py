@@ -26,11 +26,11 @@ def add_user(user: UserInDB):
 
         # Write a query to insert the user data into the table
         query = '''
-        INSERT INTO users (username, hashed_password, disabled, blacklist, start_time, end_time, date_of_birth, bot)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (username, hashed_password, disabled, blacklist, start_time, end_time, date_of_birth, bot, jwt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
         # Execute the query with the user data
-        cursor.execute(query, (user.username, user.hashed_password, user.disabled, user.blacklist, user.start_time, user.end_time, user.date_of_birth, user.bot))
+        cursor.execute(query, (user.username, user.hashed_password, user.disabled, user.blacklist, user.start_time, user.end_time, user.date_of_birth, user.bot, user.jwt))
         sqliteConnection.commit()
         
         print('User added successfully to the database.')
@@ -80,6 +80,7 @@ def get_users() -> List[User]:
             if users_details:
                 # Create a User object with the fetched details
                 for user_details in users_details:
+                    # TODO: Check why hash_password is being added???
                     user = User(username=user_details[0], hashed_password=user_details[1], disabled=user_details[2], blacklist=user_details[3], start_time=user_details[4], end_time=user_details[5], date_of_birth=user_details[6], bot=user_details[7])
                     users.append(user)
             else:
@@ -123,6 +124,7 @@ def get_user(username: str) -> User | None:
         # Check if user exists
         if user_details:
             # Create a User object with the fetched details
+            # TODO: Check why hash_password is being added???
             user = UserInDB(username=user_details[0], hashed_password=user_details[1], disabled=user_details[2], blacklist=user_details[3], start_time=user_details[4], end_time=user_details[5], date_of_birth=user_details[6], bot=user_details[7])
             print(user, type(user))
         else:
@@ -163,7 +165,7 @@ def get_user_in_db(username: str) -> UserInDB | None:
         # Check if user exists
         if user_details:
             # Create a User object with the fetched details
-            user = UserInDB(username=user_details[0], hashed_password=user_details[1], disabled=user_details[2], blacklist=user_details[3], start_time=user_details[4], end_time=user_details[5], date_of_birth=user_details[6], bot=user_details[7])
+            user = UserInDB(username=user_details[0], hashed_password=user_details[1], disabled=user_details[2], blacklist=user_details[3], start_time=user_details[4], end_time=user_details[5], date_of_birth=user_details[6], bot=user_details[7], jwt=user_details[8])
             print(user, type(user))
         else:
             print("DB: User", username, "not found")
@@ -184,6 +186,81 @@ def get_user_in_db(username: str) -> UserInDB | None:
 
         return user
 
+def set_jwt(username: str, jwt: str):
+    """Store the user jwt token"""
+
+    sqliteConnection = None
+
+    try:
+        sqliteConnection = sqlite3.connect("/var/lib/sqlite/users.db")
+        cursor = sqliteConnection.cursor()
+        print('DB: Init')
+
+        # Update the jwt of the user
+        query = "UPDATE users SET jwt = ? WHERE username = ?"
+        cursor.execute(query, (jwt, username))
+        sqliteConnection.commit()
+
+        # Check if any rows were affected
+        if cursor.rowcount > 0:
+            print("DB: User", username, "jwt updated successfully")
+        else:
+            print("DB: User", username, "not found")
+        
+    # Handle errors
+    except sqlite3.Error as error:
+        print('DB: Error occurred - ', error)
+        raise sqlite3.Error
+    
+    except Exception as e:
+        print("DB: Non SQL Exception -", e)
+        raise e
+
+    finally:
+
+        if sqliteConnection:
+            sqliteConnection.close()
+            print("DB: Connection Closed")
+
+
+def get_jwt(username):
+    """Get the user jwt token"""
+
+    jwt = None
+    sqliteConnection = None
+
+    try:
+        sqliteConnection = sqlite3.connect("/var/lib/sqlite/users.db")
+        cursor = sqliteConnection.cursor()
+        print('DB: Init')
+
+        # Write a query to fetch the jwt of the user
+        query = "SELECT jwt FROM users WHERE username = ?"
+        cursor.execute(query, (username,))
+        jwt = cursor.fetchone()
+
+        # Check if jwt exists
+        if jwt:
+            print("DB: User", username, "jwt found")
+        else:
+            print("DB: User", username, "not found")
+        
+    # Handle errors
+    except sqlite3.Error as error:
+        print('DB: Error occurred - ', error)
+        raise sqlite3.Error
+    
+    except Exception as e:
+        print("DB: Non SQL Exception -", e)
+        raise e
+
+    finally:
+
+        if sqliteConnection:
+            sqliteConnection.close()
+            print("DB: Connection Closed")
+
+        return jwt
 
 
 def init():
@@ -214,7 +291,8 @@ def init():
                 start_time TEXT,
                 end_time TEXT,
                 date_of_birth DATE,
-                bot TEXT
+                bot TEXT,
+                jwt TEXT
             );
             '''
 
@@ -224,11 +302,11 @@ def init():
 
             # Insert root user into the table
             query = '''
-            INSERT INTO users (username, hashed_password, disabled, blacklist, start_time, end_time, date_of_birth, bot)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (username, hashed_password, disabled, blacklist, start_time, end_time, date_of_birth, bot, jwt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             '''
             # Execute the query with the user data
-            cursor.execute(query, ("root", '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 0, 0, 0, 0, date(year=2024, month=10, day=10), ""))
+            cursor.execute(query, ("root", '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 0, 0, 0, 0, date(year=2024, month=10, day=10), "", ""))
 
             sqliteConnection.commit()
             print('DB: Root user created successfully.')

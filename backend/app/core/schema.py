@@ -36,6 +36,8 @@ class UserInDB(User):
     """
     UserInDB(User) Class 
     
-    Class with hashed password
+    hashed_password: Password string hashed
+    jwt: jwt token last associated with user
     """
     hashed_password: str
+    jwt: str
