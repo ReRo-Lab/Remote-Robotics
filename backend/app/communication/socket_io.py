@@ -16,11 +16,11 @@ async def connect(sid, environ):
     print("Client connected", sid)
     await sio.emit("message", "Connected")
 
-async def print_event(data, bot):
+async def user_dump_printer(data, bot):
     """Send bot dump (user-printed) data to user"""
     await sio.emit("print", {"print" : data, "bot" : bot})
 
-async def print_exception(data, bot):
+async def user_exception_printer(data, bot):
     """Send bot exception to user"""
     await sio.emit("exception", {"print" : data, "bot" : bot})
 

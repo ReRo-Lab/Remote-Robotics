@@ -5,12 +5,18 @@
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, status
 
+from ..communication import socket_io
+
 import requests
 from requests import Response
 
 # Bot IP Address constants
 IP_ROS_BOT = "localhost:8081"
 IP_IOT_BOT = "localhost:8082"
+
+# BOT Name strings
+ROS_BOT = "ros"
+IOT_BOT = "iot"
 
 router = APIRouter()
 
@@ -44,3 +50,45 @@ def push_code(bot: str, file_path: str) -> bool:
     except requests.RequestException as e:
         print(f"An error occurred: {e}")
         return False
+    
+
+@router.get("/iot/dump")
+async def dump_iot_data(data: str):
+    """
+    Print string from iot bot to the client
+
+    data: str
+    """
+    print("Running...")
+    await socket_io.user_dump_printer(data, IOT_BOT)
+
+@router.get("/iot/exception")
+async def dump_iot_data(data: str):
+    """
+    Print string from iot bot to the client
+
+    data: str
+    """
+    
+    socket_io.user_exception_printer(data, IOT_BOT)
+
+
+@router.get("/ros/dump")
+async def dump_ros_data(data: str):
+    """
+    Print string from ros bot to the client
+
+    data: str
+    """
+    
+    socket_io.user_dump_printer(data, ROS_BOT)
+
+@router.get("/ros/exception")
+async def dump_ros_data(data: str):
+    """
+    Print string from ros bot to the client
+
+    data: str
+    """
+    
+    socket_io.user_exception_printer(data, ROS_BOT)
