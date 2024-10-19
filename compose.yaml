@@ -12,16 +12,4 @@ services:
         tty: true
         # TODO: Change to overlay network for docker swarm  & security
         network_mode: host
-
-    frontend:
-        depends_on:
-            - backend
-        build:
-            context: ./frontend
-            dockerfile: dockerfile
-        ports:
-            - 80:3000
-        tty: true
-        # TODO: Change to overlay network for docker swarm & security
-        network_mode: host
  

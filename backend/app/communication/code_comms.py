@@ -1,5 +1,5 @@
 # Author: Ujwal N K
-# Date: 2024-09-20
+# Date: 2024, Sep 20
 # Communication from the user to the bot handled by the server
 
 from typing import Annotated
