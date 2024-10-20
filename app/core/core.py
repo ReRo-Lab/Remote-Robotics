@@ -393,33 +393,37 @@ async def set_password(
 async def get_username(current_user: Annotated[User, Depends(get_current_active_user)]):
     """
 
-    Get the authenticated user, and associated bot
+    Get the authenticated user, associated bot, and allocated timeslot
     Raise HTTP Exception incase bot not allocated
 
 
     @return
         {
             "username": username,
-            "bot: bot
+            "bot: associated bot,
+            "start_time": Allocated time slot start
+            "end_time": Allocated time slot end
         }
 
     """
 
     if current_user.username in admin_group:
-        return {"username": current_user.username, "bot": "*"}
+        return {"username": current_user.username, "bot": "*", "start_time": None, "end_time": None}
 
     else:
         try:
-            ds.get_user(current_user.username).bot
+            user: User = ds.get_user(current_user.username)
 
             return {
-                "username": current_user.username,
-                "bot": ds.get_user(current_user.username).bot,
+                "username": user.username,
+                "bot": user.bot,
+                "start_time": user.start_time,
+                "end_time": user.end_time,
             }
 
         except:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No bot allocated",
+                detail="No bot or timeslot allocated",
                 headers={"WWW-Authenticate": "Bearer"},
             )
