@@ -26,10 +26,10 @@ class User(BaseModel):
     username: str
     blacklist: bool = False
     disabled : bool = False
-    start_time: str
-    end_time: str
+    start_time: str | None
+    end_time: str | None
     date_of_birth: date
-    bot: str
+    bot: str | None
 
 
 class UserInDB(User):
@@ -40,4 +40,4 @@ class UserInDB(User):
     jwt: jwt token last associated with user
     """
     hashed_password: str
-    jwt: str
+    jwt: str | None

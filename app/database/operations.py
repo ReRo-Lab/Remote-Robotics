@@ -124,7 +124,7 @@ def get_user(username: str) -> User | None:
         if user_details:
             # Create a User object with the fetched details
             # TODO: Check why hash_password is being added???
-            user = UserInDB(username=user_details[0], hashed_password=user_details[1], disabled=user_details[2], blacklist=user_details[3], start_time=user_details[4], end_time=user_details[5], date_of_birth=user_details[6], bot=user_details[7])
+            user = UserInDB(username=user_details[0], hashed_password=user_details[1], disabled=user_details[2], blacklist=user_details[3], start_time=user_details[4], end_time=user_details[5], date_of_birth=user_details[6], bot=user_details[7], jwt=user_details[8])
             print(user, type(user))
         else:
             print("DB: User", username, "not found")

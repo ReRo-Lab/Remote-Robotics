@@ -46,6 +46,7 @@ admin_group = wheel_group + (ROLE_ADMIN,)
 
 ############### Role levels ###############
 
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -94,13 +95,12 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
             raise credentials_exception
 
         # Allow only one user, check jwt against stored jwt
-        elif (username not in admin_group) and (ds.get_jwt(username) != token):
+        elif (username not in admin_group) and (ds.get_jwt(username)[0] != token):
             # On multiple users using same account, remove the older login
             ds.set_jwt(username, None)
             raise credentials_exception
-        
-        token_data = TokenData(username=username)
 
+        token_data = TokenData(username=username)
 
     except InvalidTokenError:
         raise credentials_exception
@@ -115,7 +115,7 @@ async def get_current_active_user(
 ):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
-    
+
     elif (current_user.username not in admin_group) and (
         (
             int(current_user.start_time) > int(datetime.now().strftime("%y%m%d%H%M%S"))
@@ -135,9 +135,7 @@ async def get_current_active_user(
     return current_user
 
 
-async def only_root_user(
-        current_user: Annotated[User, Depends(get_current_user)]
-):
+async def only_root_user(current_user: Annotated[User, Depends(get_current_user)]):
     """Allow only root user to access functionality"""
     if current_user.username not in wheel_group:
         raise HTTPException(
@@ -147,9 +145,8 @@ async def only_root_user(
         )
     return current_user
 
-async def only_developer(
-        current_user: Annotated[User, Depends(get_current_user)]
-):
+
+async def only_developer(current_user: Annotated[User, Depends(get_current_user)]):
     "Allow only developer access functionality"
     if current_user.username != ROLE_DEVELOPER:
         raise HTTPException(
@@ -158,38 +155,38 @@ async def only_developer(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-async def admin_plus(
-        current_user: Annotated[User, Depends(get_current_user)]
-):
+
+async def admin_plus(current_user: Annotated[User, Depends(get_current_user)]):
     "Allow admin, root & developer to access endpoint"
     if current_user.username not in admin_group:
         raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             details="Developer, root & admin endpoint only",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    
+
 async def iot_bot_access(
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """Allow only root user and user with timeslot alloted to iot_bot to access"""
-    
+
     if current_user.bot == "iot" or current_user.username in wheel_group:
         return current_user
-    
+
     elif current_user.bot == "ros":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are alloted a timeslot for ROS Bot",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not Authorized",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
 
 async def ros_bot_access(
     current_user: Annotated[User, Depends(get_current_active_user)]
@@ -197,7 +194,7 @@ async def ros_bot_access(
     """Allow only root user and user with timeslot alloted to ros_bot to access"""
     if current_user.bot == "ros" or current_user.username in wheel_group:
         return current_user
-    
+
     elif current_user.bot == "iot":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -238,6 +235,12 @@ async def login_for_access_token(
         )
     ):
 
+        print(
+            int(user.start_time),
+            int(user.end_time),
+            int(datetime.now().strftime("%y%m%d%H%M%S")),
+        )
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -252,6 +255,10 @@ async def login_for_access_token(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+
+    # Store token data in database
+    ds.set_jwt(user.username, access_token)
+
     return Token(access_token=access_token, token_type="bearer")
 
 
@@ -262,21 +269,19 @@ async def login_for_access_token(
         403: {"description": "Username already exists in the database"},
     },
 )
-
 async def add_user(
     user: UserInDB,
-    current_user: Annotated[User, Depends(admin_plus)], 
+    current_user: Annotated[User, Depends(admin_plus)],
 ) -> User:
-    
     """
-        Create a new User(
-            username (str): Username, must be unique for every user
-            diabled (bool): Disable a user
-            blacklist (bool): Blacklist a user for short duration
-            date_of_birth (str): User date of birth for setting password
-        )
+    Create a new User(
+        username (str): Username, must be unique for every user
+        diabled (bool): Disable a user
+        blacklist (bool): Blacklist a user for short duration
+        date_of_birth (str): User date of birth for setting password
+    )
 
-        return: User
+    return: User
     """
 
     # Set a static past date (Oct 03, 2024) the date when this was implemented
@@ -381,17 +386,40 @@ async def set_password(
     "/me",
     responses={
         401: {"description": "User not authenticated"},
+        403: {"description": "Bot unallocated"},
         200: {"description": "OK"},
     },
 )
 async def get_username(current_user: Annotated[User, Depends(get_current_active_user)]):
-    """Get the authenticated user
+    """
+
+    Get the authenticated user, and associated bot
+    Raise HTTP Exception incase bot not allocated
+
 
     @return
         {
-            "username": username
+            "username": username,
+            "bot: bot
         }
 
     """
 
-    return {"username": current_user.username}
+    if current_user.username in admin_group:
+        return {"username": current_user.username, "bot": "*"}
+
+    else:
+        try:
+            ds.get_user(current_user.username).bot
+
+            return {
+                "username": current_user.username,
+                "bot": ds.get_user(current_user.username).bot,
+            }
+
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No bot allocated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
