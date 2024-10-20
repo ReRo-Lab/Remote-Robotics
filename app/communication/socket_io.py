@@ -28,16 +28,11 @@ async def connect(sid, environ):
     # Check for JWT Authentication
     token = environ.get('HTTP_AUTHORIZATION')
 
-    print(token)
-
     try:
-        print(1)
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print(2)
         username: str = payload.get("sub")
 
-        print(username, token, get_jwt(username), token == get_jwt(username)[0])
 
         # Check username registered
         if username is None:
@@ -45,7 +40,7 @@ async def connect(sid, environ):
             print("Username is none")
             raise Exception
 
-        # Allow only one user, check jwt against stored jwt
+        # Check JWT Token
         elif (username not in admin_group) and (get_jwt(username)[0] != token):
             await sio.emit("Error: Invalid JWT token", sid=sid)
             raise Exception
@@ -61,9 +56,9 @@ async def connect(sid, environ):
 
 async def user_dump_printer(data, bot):
     """Send bot dump (user-printed) data to user"""
-    await sio.emit("info", {"print" : data, "bot" : bot})
+    await sio.emit("print", {"print" : data, "bot" : bot})
 
 async def user_exception_printer(data, bot):
     """Send bot exception to user"""
-    await sio.emit("error", {"print" : data, "bot" : bot})
+    await sio.emit("exception", {"print" : data, "bot" : bot})
 
