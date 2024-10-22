@@ -8,6 +8,13 @@ from .timeslot import timeslot_manager
 
 app = FastAPI()
 
+app.include_router(core.router)
+app.include_router(timeslot_manager.router)
+app.include_router(code_comms.router)
+app.include_router(bot_comms.router)
+
+app.mount("", socket_io.socket_app)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -16,11 +23,4 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.include_router(core.router)
-app.include_router(timeslot_manager.router)
-app.include_router(code_comms.router)
-app.include_router(bot_comms.router)
-
-app.mount("", socket_io.socket_app)
 

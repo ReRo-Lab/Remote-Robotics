@@ -339,3 +339,40 @@ def change_password(username: str, hashed_password: str) -> User | None:
                 print("DB: Connection Closed")
     
             return user
+        
+
+def set_user_blacklist(username: str, blacklist: bool) -> None:
+    """Set the blacklist status of the user"""
+
+    sqliteConnection = None
+
+    try:
+        sqliteConnection = sqlite3.connect("/var/lib/sqlite/users.db")
+        cursor = sqliteConnection.cursor()
+        print('DB: Init')
+
+        # Update the blacklist status of the user
+        query = "UPDATE users SET blacklist = ? WHERE username = ?"
+        cursor.execute(query, (blacklist, username))
+        sqliteConnection.commit()
+
+        # Check if any rows were affected
+        if cursor.rowcount > 0:
+            print("DB: User", username, "blacklist updated successfully")
+        else:
+            print("DB: User", username, "not found")
+        
+    # Handle errors
+    except sqlite3.Error as error:
+        print('DB: Error occurred - ', error)
+        raise sqlite3.Error
+    
+    except Exception as e:
+        print("DB: Non SQL Exception -", e)
+        raise e
+
+    finally:
+
+        if sqliteConnection:
+            sqliteConnection.close()
+            print("DB: Connection Closed")

@@ -59,8 +59,9 @@ async def dump_iot_data(data: str):
 
     data: str
     """
-    print("Running...")
+    print("Running...", data)
     await socket_io.user_dump_printer(data, IOT_BOT)
+    return 200
 
 @router.get("/iot/exception")
 async def dump_iot_data(data: str):

@@ -427,3 +427,29 @@ async def get_username(current_user: Annotated[User, Depends(get_current_active_
                 detail="No bot or timeslot allocated",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+
+@router.get("/blacklist")
+async def blacklist_user(current_user: Annotated[User, Depends(admin_plus)], username: str, status: bool):
+    """
+    Blacklist a user
+
+    param: username
+
+    return: username
+    """
+    return False
+    return ds.blacklist_user(current_user.username, status)
+
+
+@router.get("/disable_user")
+async def disable_user(current_user: Annotated[User, Depends(only_root_user)], username:str, status: bool):
+    """
+    Disable / Enable a user
+
+    param: username
+
+    return: status of the user
+    """
+    return False
+    return ds.disable_user(current_user.username, status)

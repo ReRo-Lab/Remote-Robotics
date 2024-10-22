@@ -46,6 +46,7 @@ async def connect(sid, environ):
             raise Exception
 
     except Exception as e:
+        print(e)
         await sio.emit("message", {"error": str(e)})
         await sio.disconnect(sid)
         return
@@ -56,6 +57,7 @@ async def connect(sid, environ):
 
 async def user_dump_printer(data, bot):
     """Send bot dump (user-printed) data to user"""
+    print("Sending data")
     await sio.emit("print", {"print" : data, "bot" : bot, "type": "info"})
 
 async def user_exception_printer(data, bot):

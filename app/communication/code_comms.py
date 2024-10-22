@@ -2,7 +2,10 @@
 # Date: 2024, Sep 20
 # Communication from the user to the bot handled by the server
 
+import asyncio
 from typing import Annotated
+
+import requests
 from fastapi import APIRouter, HTTPException, Depends, status, UploadFile
 
 from datetime import datetime, timedelta, timezone
@@ -15,6 +18,7 @@ from ..core.core import get_current_active_user, iot_bot_access, ros_bot_access
 from ..communication import bot_comms as bc
 from ..communication import code_comms as cc
 from ..communication.check_imports import check_imports
+import httpx
 
 router = APIRouter(prefix="/bot")
 
@@ -77,10 +81,12 @@ async def push_code(
 )
 async def stop_iot_bot(
     current_user: Annotated[User, Depends(iot_bot_access)],
-) -> bool:
+) -> None | bool:
     """Emergency stop for the IoT BOT"""
     # TODO: Implement stop message over socket stream
-    return True
+    # return True
+
+    result = await asyncio.to_thread(requests.get, "http://" + bc.IP_IOT_BOT + "/stop_code")
 
 
 @router.post(
