@@ -453,3 +453,13 @@ async def disable_user(current_user: Annotated[User, Depends(only_root_user)], u
     """
     return False
     return ds.disable_user(current_user.username, status)
+
+@router.get("/logout")
+async def logout(current_user: Annotated[User, Depends(get_current_active_user)]):
+    """
+    Logout the user
+
+    return: status of the user
+    """
+    
+    return ds.set_jwt(current_user.username, None)
