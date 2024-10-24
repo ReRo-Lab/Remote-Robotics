@@ -358,8 +358,8 @@ async def set_password(
     # Non-root user with the same username and date of birth
     elif (
         (current_user not in admin_group)
-        and (current_user.username == user.username)
-        and (user.date_of_birth == date_of_birth)
+        and (current_user.username == username)
+        and (ds.get_user(current_user.username).date_of_birth == date_of_birth)
     ):
         user: User = ds.get_user(username)
         flag: User | None = ds.change_password(
