@@ -12,7 +12,7 @@ import jwt
 
 # SocketIO Server Instance
 # Allow CORS for all origins for communication between the user & back-end directly
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="https://rerolab.com")
 
 socket_app = socketio.ASGIApp(sio)
 
